@@ -168,7 +168,7 @@ def _warn_if_not_converted_to_original_time_units(x):
 
 
 @is_xarray(0)
-def autocorr(ds, dim="time", nlags=None):
+def autocorr(ds, dim="time", nlags=None, xs_kwargs={}):
     """Compute the autocorrelation function of a time series to a specific lag.
 
     .. note::
@@ -186,6 +186,8 @@ def autocorr(ds, dim="time", nlags=None):
       dim (str, optional): Dimension to apply ``autocorr`` over. Defaults to 'time'.
       nlags (int, optional): Number of lags to compute ACF over. If None,
                             compute for length of `dim` on `ds`.
+      xs_kwargs (dict, optional): Dictionary of keywords arguments to pass to 
+                              xskillscore function when computing correlation.
 
     Returns:
       Dataset or DataArray with ACF results.
@@ -198,14 +200,14 @@ def autocorr(ds, dim="time", nlags=None):
     # The factor of 2 accounts for fact that time series reduces in size for
     # each lag.
     for i in range(nlags):
-        res = corr(ds, ds, lead=i, dim=dim)
+        res = corr(ds, ds, lead=i, dim=dim, xs_kwargs=xs_kwargs)
         acf.append(res)
     acf = xr.concat(acf, dim="lead", **CONCAT_KWARGS)
     return acf
 
 
 @is_xarray(0)
-def corr(x, y, dim="time", lead=0, return_p=False):
+def corr(x, y, dim="time", lead=0, return_p=False, xs_kwargs={}):
     """Computes the Pearson product-moment coefficient of linear correlation.
 
     Args:
@@ -216,6 +218,8 @@ def corr(x, y, dim="time", lead=0, return_p=False):
             If lead < 0, ``x`` lags ``y`` by that many time steps. Defaults to 0.
         return_p (bool, optional). If True, return both the correlation coefficient
             and p value. Otherwise, just returns the correlation coefficient.
+        xs_kwargs (dict, optional): Dictionary of keywords arguments to pass to 
+            xskillscore function when computing correlation.
 
     Returns:
         corrcoef (xarray object): Pearson correlation coefficient.
@@ -223,7 +227,7 @@ def corr(x, y, dim="time", lead=0, return_p=False):
 
     """
 
-    def _lag_correlate(x, y, dim, lead, return_p):
+    def _lag_correlate(x, y, dim, lead, return_p, xs_kwargs={}):
         """Helper function to shift the two time series and correlate."""
         N = x[dim].size
         normal = x.isel({dim: slice(0, N - lead)})
@@ -232,7 +236,7 @@ def corr(x, y, dim="time", lead=0, return_p=False):
         shifted[dim] = normal[dim]
         corrcoef = pearson_r(normal, shifted, dim)
         if return_p:
-            pval = pearson_r_p_value(normal, shifted, dim)
+            pval = pearson_r_p_value(normal, shifted, dim, **xs_kwargs)
             return corrcoef, pval
         else:
             return corrcoef
@@ -256,9 +260,9 @@ def corr(x, y, dim="time", lead=0, return_p=False):
     ), f"Requested lead [{lead}] is larger than dim [{dim}] size."
 
     if lead < 0:
-        return _lag_correlate(y, x, dim, np.abs(lead), return_p)
+        return _lag_correlate(y, x, dim, np.abs(lead), return_p, xs_kwargs)
     else:
-        return _lag_correlate(x, y, dim, lead, return_p)
+        return _lag_correlate(x, y, dim, lead, return_p, xs_kwargs)
 
 
 @is_xarray([0, 1])
