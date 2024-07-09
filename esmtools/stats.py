@@ -234,7 +234,7 @@ def corr(x, y, dim="time", lead=0, return_p=False, xs_kwargs={}):
         shifted = y.isel({dim: slice(0 + lead, N)})
         # Align dimensions for xarray operation.
         shifted[dim] = normal[dim]
-        corrcoef = pearson_r(normal, shifted, dim)
+        corrcoef = pearson_r(normal, shifted, dim, **xs_kwargs)
         if return_p:
             pval = pearson_r_p_value(normal, shifted, dim, **xs_kwargs)
             return corrcoef, pval
